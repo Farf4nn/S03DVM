@@ -13,7 +13,8 @@ public class PlayerController : MonoBehaviour
     public float rotationSpeed = 200f;
     public float verticalVelocity = 0;
     public float jumpForce = 10;
-
+    public float sprintMultiplier = 2f;
+    private bool isSprinting;
     public float pushForce = 4;
 
     private bool IsDashing;
@@ -41,6 +42,8 @@ public class PlayerController : MonoBehaviour
         inputs.Player.Move.performed += ctx =>  moveInput = ctx.ReadValue<Vector2>();
         inputs.Player.Move.canceled += ctx => moveInput = Vector2.zero;
 
+        inputs.Player.Sprint.performed += ctx => isSprinting = true;
+        inputs.Player.Sprint.canceled += ctx => isSprinting = false;
 
         inputs.Player.Jump.performed += OnJump;
 
@@ -63,6 +66,13 @@ public class PlayerController : MonoBehaviour
     public void OnMove()
     {
         transform.Rotate(Vector3.up * moveInput.x * rotationSpeed * Time.deltaTime);
+
+        float speed = moveSpeed;
+        if (isSprinting)
+        {
+            speed *= sprintMultiplier;
+        }
+
         Vector3 moveDir = transform.forward * moveSpeed * moveInput.y;
 
         verticalVelocity += Physics.gravity.y * Time.deltaTime;
@@ -73,19 +83,18 @@ public class PlayerController : MonoBehaviour
 
         moveDir.y = verticalVelocity;
 
-        if(IsDashing)
+        if (IsDashing)
         {
-            //->convertir el dash a un barrido por el piso! dash con gravedad integrada omaegoto!
-            moveDir = transform.forward * dashForce * (dashTimer/dashDuration) ;
+            Vector3 dashDir = transform.forward * dashForce * (dashTimer / dashDuration);
+
+            moveDir.x = dashDir.x;
+            moveDir.z = dashDir.z;
 
             dashTimer -= Time.deltaTime;
 
-            if(dashTimer <= 0)
+            if (dashTimer <= 0)
                 IsDashing = false;
         }
-
-
-
 
         controller.Move(moveDir * Time.deltaTime);
     }
@@ -104,8 +113,6 @@ public class PlayerController : MonoBehaviour
     }
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        
-
         Vector3 pushDir = (hit.transform.position - transform.position).normalized;
 
         if (hit.rigidbody != null && hit.rigidbody.linearVelocity == Vector3.zero)
@@ -119,5 +126,12 @@ public class PlayerController : MonoBehaviour
         IsDashing = true;
         dashTimer = dashDuration;
     }
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.blue;
+        Gizmos.DrawLine(transform.position, transform.position + transform.forward * 2f);
 
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(transform.position, transform.position + Vector3.up * verticalVelocity * 0.2f);
+    }
 }
